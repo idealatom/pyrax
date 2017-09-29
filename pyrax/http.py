@@ -20,19 +20,17 @@ Wrapper around the requests library. Used for making all HTTP calls.
 import logging
 import json
 import requests
+from requests.packages.urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 import pyrax
 import pyrax.exceptions as exc
 
 
-req_methods = {
-    "HEAD": requests.head,
-    "GET": requests.get,
-    "POST": requests.post,
-    "PUT": requests.put,
-    "DELETE": requests.delete,
-    "PATCH": requests.patch,
-    }
+session = requests.Session()
+retries = Retry(total=5, backoff_factor=0.1, status_forcelist=[ 500, 502, 503, 504 ])
+session.mount('http://', HTTPAdapter(max_retries=retries))
+session.mount('https://', HTTPAdapter(max_retries=retries))
 
 # NOTE: FIX THIS!!!
 verify_ssl = False
@@ -46,7 +44,7 @@ def request(method, uri, *args, **kwargs):
     Formats the request into a dict representing the headers
     and body that will be used to make the API call.
     """
-    req_method = req_methods[method.upper()]
+    req_method = getattr(session, method.lower())
     raise_exception = kwargs.pop("raise_exception", True)
     raw_content = kwargs.pop("raw_content", False)
     kwargs["headers"] = kwargs.get("headers", {})
